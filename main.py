@@ -1,40 +1,50 @@
 from fastapi import FastAPI, HTTPException
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from youtube_transcript_api.proxies import GenericProxyConfig
 import uvicorn
 import os
 
 app = FastAPI()
 
-# EDIT THESE VALUES WITH REAL CREDENTIALS IF YOU USE A PROXY
+# 1. CONFIGURE YOUR PROXY HERE
+# Replace these placeholders with your actual proxy provider details
 PROXY_USER = "your_proxy_username"
 PROXY_PASS = "your_proxy_password"
-PROXY_HOST = "your_proxy_address_or_ip"
-PROXY_PORT = "your_proxy_port"
+PROXY_HOST = "my-custom-proxy.org"
+PROXY_PORT = "port"
 
 @app.get("/transcript")
 def get_transcript(id: str):
     if not id:
         raise HTTPException(status_code=400, detail="Missing 'id' parameter in URL")
     
-    # Check if user actually replaced the placeholder text
+    # 2. CHECK IF PROXY IS CONFIGURED
     use_proxy = all([
         PROXY_USER and PROXY_USER != "your_proxy_username",
         PROXY_PASS and PROXY_PASS != "your_proxy_password",
-        PROXY_HOST and PROXY_HOST != "your_proxy_address_or_ip",
-        PROXY_PORT and PROXY_PORT != "your_proxy_port"
+        PROXY_HOST and PROXY_HOST != "my-custom-proxy.org",
+        PROXY_PORT and PROXY_PORT != "port"
     ])
     
-    proxy_dict = None
-    if use_proxy:
-        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
-        proxy_dict = {
-            "http": proxy_url,
-            "https": proxy_url
-        }
-
     try:
-        # Pass proxy dict conditionally (Will be None if placeholders are left unchanged)
-        transcript_list = YouTubeTranscriptApi.list_transcripts(id, proxies=proxy_dict)
+        # 3. INITIALIZE THE API CLIENT
+        if use_proxy:
+            # Build the authenticated URLs exactly like your snippet
+            http_string = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+            https_string = f"https://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+            
+            proxy_config = GenericProxyConfig(
+                http_url=http_string,
+                https_url=https_string
+            )
+            # Create the proxied API instance
+            api_instance = YouTubeTranscriptApi(proxy_config=proxy_config)
+        else:
+            # Fallback to standard client if no proxy is configured yet
+            api_instance = YouTubeTranscriptApi
+
+        # 4. FETCH THE TRANSCRIPT LIST VIA THE INSTANCE
+        transcript_list = api_instance.list_transcripts(id)
         
         try:
             srt = transcript_list.find_manually_created_transcript(['en']).fetch()
