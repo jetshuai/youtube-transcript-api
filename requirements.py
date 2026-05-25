@@ -1,3 +1,0 @@
-fastapi==0.110.0
-uvicorn==0.28.0
-youtube-transcript-api==0.6.2
