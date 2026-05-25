@@ -5,20 +5,24 @@ import os
 
 app = FastAPI()
 
+# Locate the cookies file in your project
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+
 @app.get("/transcript")
 def get_transcript(id: str):
     if not id:
         raise HTTPException(status_code=400, detail="Missing 'id' parameter in URL")
     
+    # Check if user uploaded cookies
+    cookies_param = COOKIES_FILE if os.path.exists(COOKIES_FILE) else None
+    
     try:
-        # Fetch the list of available transcripts
-        transcript_list = YouTubeTranscriptApi.list_transcripts(id)
+        # Pass the cookies file into the API request to bypass bot blocks
+        transcript_list = YouTubeTranscriptApi.list_transcripts(id, cookies=cookies_param)
         
         try:
-            # 1. Try fetching manually created English transcripts first
             srt = transcript_list.find_manually_created_transcript(['en']).fetch()
         except NoTranscriptFound:
-            # 2. Fallback: If no manual script, fetch the auto-generated English one
             srt = transcript_list.find_generated_transcript(['en']).fetch()
             
         return {
